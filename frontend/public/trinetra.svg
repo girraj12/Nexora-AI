@@ -1,0 +1,32 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" rx="220" fill="#06111f"/>
+
+  <rect x="218" y="155" width="588" height="520" rx="120" fill="#0b1b2f" stroke="#1e3a5f" stroke-width="10"/>
+
+  <path d="M250 430C330 310 420 265 512 265C604 265 694 310 774 430C694 550 604 595 512 595C420 595 330 550 250 430Z" fill="#101827" stroke="#24364f" stroke-width="24"/>
+
+  <path d="M315 430C370 360 435 330 512 330C589 330 654 360 709 430C654 500 589 530 512 530C435 530 370 500 315 430Z" fill="#0b2f86"/>
+
+  <circle cx="512" cy="430" r="104" fill="url(#iris)"/>
+  <circle cx="512" cy="430" r="62" fill="#e0f2fe"/>
+  <circle cx="512" cy="430" r="38" fill="#06111f"/>
+  <circle cx="548" cy="390" r="24" fill="#ffffff"/>
+
+  <text x="512" y="820" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="800" letter-spacing="14" fill="url(#text)">
+    NEXORA AI
+  </text>
+
+  <defs>
+    <radialGradient id="iris" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(512 430) rotate(90) scale(104)">
+      <stop stop-color="#38bdf8"/>
+      <stop offset="0.5" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#1e40af"/>
+    </radialGradient>
+
+    <linearGradient id="text" x1="250" y1="760" x2="774" y2="860">
+      <stop stop-color="#7dd3fc"/>
+      <stop offset="0.5" stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+</svg>
