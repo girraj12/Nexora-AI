@@ -88,7 +88,7 @@ function Auth({ onLogin }) {
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-xl">
 
         <h1 className="text-3xl font-bold mb-2 text-center">
-          Trinetra AI
+          NEXORA AI
         </h1>
 
         <p className="text-slate-400 text-center mb-8">

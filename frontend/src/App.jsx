@@ -38,6 +38,28 @@ const AI_GROUPS = [
 
 const FLAT_WORKSPACES = AI_GROUPS.flatMap((group) => group.items);
 
+
+function ResultList({ title, items = [] }) {
+  if (!items?.length) return null;
+
+  return (
+    <div>
+      <h3 className="mb-2 font-semibold">{title}</h3>
+
+      <ul className="space-y-2 text-sm opacity-80">
+        {items.map((item, index) => (
+          <li
+            key={index}
+            className="rounded-xl bg-white/5 px-3 py-2"
+          >
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function App() {
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
@@ -84,6 +106,12 @@ function App() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [sharing, setSharing] = useState(false);
+
+  const [showResumeAnalyzer, setShowResumeAnalyzer] = useState(false);
+  const [resumeFile, setResumeFile] = useState(null);
+  const [targetRole, setTargetRole] = useState('');
+  const [resumeAnalyzing, setResumeAnalyzing] = useState(false);
+  const [resumeResult, setResumeResult] = useState(null);
 
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -492,6 +520,41 @@ function App() {
     });
   };
 
+
+const analyzeResume = async () => {
+  if (!user) {
+    setShowAuth(true);
+    return;
+  }
+
+  if (!resumeFile) {
+    alert('Please upload resume');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('resume', resumeFile);
+  formData.append('targetRole', targetRole || 'General');
+
+  setResumeAnalyzing(true);
+
+  const res = await fetch(`${API_URL}/api/resume/analyze`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: formData,
+  });
+
+  const data = await res.json();
+  setResumeAnalyzing(false);
+
+  if (!res.ok) {
+    alert(data.message || 'Resume analysis failed');
+    return;
+  }
+
+  setResumeResult(data);
+};
+
   const copyMessage = async (content) => {
     await navigator.clipboard.writeText(content);
   };
@@ -742,7 +805,7 @@ function App() {
 
         <section className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-4 py-8">
-            {messages.length === 0 && (
+            {messages.length === 0 && aiMode !== 'resume' && (
               <div className="flex min-h-[65vh] flex-col items-center justify-center text-center">
                 <img
                   src="/trinetra.svg"
@@ -757,6 +820,56 @@ function App() {
                   Start typing directly. Nexora will automatically create a new
                   chat when you send your first message.
                 </p>
+              </div>
+            )}
+
+            {messages.length === 0 && aiMode === 'resume' && (
+              <div className="flex min-h-[65vh] flex-col items-center justify-center text-center">
+                <div className="mb-5 text-6xl">📄</div>
+
+                <h1 className="mb-3 text-3xl font-semibold">
+                  Resume Intelligence
+                </h1>
+
+                <p className="mb-6 max-w-md text-sm opacity-60">
+                  Upload your resume and get ATS score, role fit, missing skills,
+                  ATS keywords, and improvement suggestions.
+                </p>
+
+<div className="grid w-full max-w-md gap-3">
+  <button
+    onClick={() => {
+      if (!user) {
+        setShowAuth(true);
+        return;
+      }
+
+      setShowResumeAnalyzer(true);
+    }}
+    className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700"
+  >
+    1. Analyze Resume
+  </button>
+
+  <button
+    onClick={() => {
+      alert('JD Matcher coming next');
+    }}
+    className="rounded-xl bg-[#2f2f2f] px-5 py-3 text-sm font-medium text-white hover:bg-[#3f3f3f]"
+  >
+    2. Match With JD
+  </button>
+
+  <button
+    onClick={() => {
+      alert('Resume Bullet Generator coming next');
+    }}
+    className="rounded-xl bg-[#2f2f2f] px-5 py-3 text-sm font-medium text-white hover:bg-[#3f3f3f]"
+  >
+    3. Generate Better Resume Bullets
+  </button>
+</div>
+
               </div>
             )}
 
@@ -1037,6 +1150,137 @@ function App() {
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        )}
+
+
+        {showResumeAnalyzer && (
+            <div className="mx-auto mb-3 max-h-[72vh] w-full max-w-3xl overflow-y-auto px-4 pr-2">
+              <div
+              className={`rounded-2xl border p-5 ${
+                isDark
+                  ? 'border-[#3a3a3a] bg-[#2a2a2a]'
+                  : 'border-slate-200 bg-white'
+              }`}
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">
+                    Resume Analyzer
+                  </h2>
+
+                  <p className="mt-1 text-sm opacity-60">
+                    Upload resume and enter target role.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setShowResumeAnalyzer(false);
+                    setResumeResult(null);
+                    setResumeFile(null);
+                    setTargetRole('');
+                  }}
+                  className={`rounded-lg px-3 py-1 text-lg ${
+                    isDark ? 'hover:bg-[#3a3a3a]' : 'hover:bg-slate-100'
+                  }`}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="grid gap-3">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setResumeFile(e.target.files[0])}
+                  className={`rounded-xl border px-4 py-3 text-sm ${inputClass}`}
+                />
+
+                <input
+                  value={targetRole}
+                  onChange={(e) => setTargetRole(e.target.value)}
+                  placeholder="Target role e.g. Backend Engineer, Data Analyst, HR Executive"
+                  className={`rounded-xl border px-4 py-3 text-sm outline-none ${inputClass}`}
+                />
+
+                <button
+                  onClick={analyzeResume}
+                  disabled={resumeAnalyzing}
+                  className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {resumeAnalyzing ? 'Analyzing...' : 'Analyze Resume'}
+                </button>
+              </div>
+
+              {resumeResult && (
+                  <div className="mt-5 max-h-[42vh] space-y-4 overflow-y-auto pr-2">
+                      <div className="rounded-2xl bg-green-600/10 p-4">
+                    <div className="text-sm opacity-70">ATS Score</div>
+
+                    <div className="text-3xl font-bold text-green-400">
+                      {resumeResult.atsScore}/100
+                    </div>
+                  </div>
+
+                  {resumeResult.targetRoleFit && (
+                    <div>
+                      <h3 className="mb-2 font-semibold">Target Role Fit</h3>
+
+                      <p className="text-sm opacity-80">
+                        {resumeResult.targetRoleFit}
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <h3 className="mb-2 font-semibold">Summary</h3>
+
+                    <p className="text-sm opacity-80">
+                      {resumeResult.summary}
+                    </p>
+                  </div>
+
+                  <ResultList
+                    title="Strengths"
+                    items={resumeResult.strengths}
+                  />
+
+                  <ResultList
+                    title="Weaknesses"
+                    items={resumeResult.weaknesses}
+                  />
+
+                  <ResultList
+                    title="Missing Skills"
+                    items={resumeResult.missingSkills}
+                  />
+
+                  <ResultList
+                    title="Role Specific Improvements"
+                    items={resumeResult.roleSpecificImprovements}
+                  />
+
+                  <ResultList
+                    title="Projects / Certifications"
+                    items={resumeResult.recommendedProjectsOrCertifications}
+                  />
+
+                  <ResultList
+                    title="ATS Keywords To Add"
+                    items={resumeResult.atsKeywordsToAdd}
+                  />
+
+                  <div>
+                    <h3 className="mb-2 font-semibold">Final Verdict</h3>
+
+                    <p className="text-sm opacity-80">
+                      {resumeResult.finalVerdict}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

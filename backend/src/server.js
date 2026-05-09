@@ -14,6 +14,7 @@ import conversationRoutes from './routes/conversation.routes.js';
 import documentRoutes from './routes/document.routes.js';
 import guestRoutes from './routes/guest.routes.js';
 import memoryRoutes from './ai/memory/memory.routes.js';
+import resumeRoutes from './ai/resume/resume.routes.js';
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use('/api/conversations', conversationRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/guest', guestRoutes);
 app.use('/api/memories', memoryRoutes);
+app.use('/api/resume', resumeRoutes);
 
 const server = http.createServer(app);
 
