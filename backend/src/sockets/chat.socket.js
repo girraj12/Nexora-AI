@@ -120,6 +120,7 @@ const registerSocket = (io, socket) => {
 
         return;
       }
+
    const conversation = await Conversation.findById(conversationId);
 
    if (conversation?.userId) {
@@ -127,8 +128,6 @@ const registerSocket = (io, socket) => {
     message,
     mode,
   });
-
-  console.log(detectedMemory, "AUTO MEMORY");
   
   if (detectedMemory.shouldSave && detectedMemory.content) {
     await createMemory({

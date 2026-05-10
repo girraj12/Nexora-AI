@@ -60,23 +60,6 @@ function ResultList({ title, items = [] }) {
   );
 }
 
-// function ResultList({ title, items = [] }) {
-//   if (!items?.length) return null;
-
-//   return (
-//     <div>
-//       <h3 className="mb-2 font-semibold">{title}</h3>
-//       <ul className="space-y-2 text-sm opacity-80">
-//         {items.map((item, index) => (
-//           <li key={index} className="rounded-xl bg-white/5 px-3 py-2">
-//             {typeof item === 'string' ? item : JSON.stringify(item)}
-//           </li>
-//         ))}
-//       </ul>
-//     </div>
-//   );
-// }
-
 function App() {
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
@@ -119,22 +102,22 @@ function App() {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [documentMode, setDocumentMode] = useState(false);
   const [uploading, setUploading] = useState(false);
-const [showShareModal, setShowShareModal] = useState(false);
-const [shareUrl, setShareUrl] = useState('');
-const [sharing, setSharing] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [sharing, setSharing] = useState(false);
 
-const [showResumeAnalyzer, setShowResumeAnalyzer] = useState(false);
-const [resumeTool, setResumeTool] = useState('analyze');
+  const [showResumeAnalyzer, setShowResumeAnalyzer] = useState(false);
+  const [resumeTool, setResumeTool] = useState('analyze');
 
-const [resumeFile, setResumeFile] = useState(null);
-const [targetRole, setTargetRole] = useState('');
-const [jobDescription, setJobDescription] = useState('');
-const [resumeBullets, setResumeBullets] = useState('');
+  const [resumeFile, setResumeFile] = useState(null);
+  const [targetRole, setTargetRole] = useState('');
+  const [jobDescription, setJobDescription] = useState('');
+  const [resumeBullets, setResumeBullets] = useState('');
 
-const [resumeLoading, setResumeLoading] = useState(false);
-const [resumeResult, setResumeResult] = useState(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [resumeResult, setResumeResult] = useState(null);
 
-const chatEndRef = useRef(null);
+  const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const selectedWorkspace =
