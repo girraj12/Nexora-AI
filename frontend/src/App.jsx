@@ -60,6 +60,23 @@ function ResultList({ title, items = [] }) {
   );
 }
 
+// function ResultList({ title, items = [] }) {
+//   if (!items?.length) return null;
+
+//   return (
+//     <div>
+//       <h3 className="mb-2 font-semibold">{title}</h3>
+//       <ul className="space-y-2 text-sm opacity-80">
+//         {items.map((item, index) => (
+//           <li key={index} className="rounded-xl bg-white/5 px-3 py-2">
+//             {typeof item === 'string' ? item : JSON.stringify(item)}
+//           </li>
+//         ))}
+//       </ul>
+//     </div>
+//   );
+// }
+
 function App() {
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
@@ -102,18 +119,22 @@ function App() {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [documentMode, setDocumentMode] = useState(false);
   const [uploading, setUploading] = useState(false);
+const [showShareModal, setShowShareModal] = useState(false);
+const [shareUrl, setShareUrl] = useState('');
+const [sharing, setSharing] = useState(false);
 
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [shareUrl, setShareUrl] = useState('');
-  const [sharing, setSharing] = useState(false);
+const [showResumeAnalyzer, setShowResumeAnalyzer] = useState(false);
+const [resumeTool, setResumeTool] = useState('analyze');
 
-  const [showResumeAnalyzer, setShowResumeAnalyzer] = useState(false);
-  const [resumeFile, setResumeFile] = useState(null);
-  const [targetRole, setTargetRole] = useState('');
-  const [resumeAnalyzing, setResumeAnalyzing] = useState(false);
-  const [resumeResult, setResumeResult] = useState(null);
+const [resumeFile, setResumeFile] = useState(null);
+const [targetRole, setTargetRole] = useState('');
+const [jobDescription, setJobDescription] = useState('');
+const [resumeBullets, setResumeBullets] = useState('');
 
-  const chatEndRef = useRef(null);
+const [resumeLoading, setResumeLoading] = useState(false);
+const [resumeResult, setResumeResult] = useState(null);
+
+const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const selectedWorkspace =
@@ -520,6 +541,119 @@ function App() {
     });
   };
 
+const resetResumeTool = () => {
+  setResumeFile(null);
+  setTargetRole('');
+  setJobDescription('');
+  setResumeBullets('');
+  setResumeResult(null);
+};
+
+const openResumeTool = (tool) => {
+  if (!user) {
+    setShowAuth(true);
+    return;
+  }
+
+  setResumeTool(tool);
+  setShowResumeAnalyzer(true);
+  setResumeResult(null);
+};
+
+const runAnalyzeResume = async () => {
+  if (!resumeFile) {
+    alert('Please upload resume');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('resume', resumeFile);
+  formData.append('targetRole', targetRole || 'General');
+
+  setResumeLoading(true);
+
+  const res = await fetch(`${API_URL}/api/resume/analyze`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: formData,
+  });
+
+  const data = await res.json();
+  setResumeLoading(false);
+
+  if (!res.ok) {
+    alert(data.message || 'Resume analysis failed');
+    return;
+  }
+
+  setResumeResult(data.result || data);
+};
+
+const runMatchWithJD = async () => {
+  if (!resumeFile) {
+    alert('Please upload resume');
+    return;
+  }
+
+  if (!jobDescription.trim()) {
+    alert('Please paste job description');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('resume', resumeFile);
+  formData.append('targetRole', targetRole || 'General');
+  formData.append('jobDescription', jobDescription);
+
+  setResumeLoading(true);
+
+  const res = await fetch(`${API_URL}/api/resume/match-jd`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: formData,
+  });
+
+  const data = await res.json();
+  setResumeLoading(false);
+
+  if (!res.ok) {
+    alert(data.message || 'JD match failed');
+    return;
+  }
+
+  setResumeResult(data.result || data);
+};
+
+const runGenerateBullets = async () => {
+  if (!resumeBullets.trim()) {
+    alert('Please enter resume bullet points');
+    return;
+  }
+
+  setResumeLoading(true);
+
+  const res = await fetch(`${API_URL}/api/resume/generate-bullets`, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      targetRole: targetRole || 'General',
+      bullets: resumeBullets,
+    }),
+  });
+
+  const data = await res.json();
+  setResumeLoading(false);
+
+  if (!res.ok) {
+    alert(data.message || 'Bullet generation failed');
+    return;
+  }
+
+  setResumeResult(data.result || data);
+};
 
 const analyzeResume = async () => {
   if (!user) {
@@ -823,56 +957,42 @@ const analyzeResume = async () => {
               </div>
             )}
 
-            {messages.length === 0 && aiMode === 'resume' && (
-              <div className="flex min-h-[65vh] flex-col items-center justify-center text-center">
-                <div className="mb-5 text-6xl">📄</div>
+{messages.length === 0 && aiMode === 'resume' && (
+  <div className="flex min-h-[65vh] flex-col items-center justify-center text-center">
+    <div className="mb-5 text-6xl">📄</div>
 
-                <h1 className="mb-3 text-3xl font-semibold">
-                  Resume Intelligence
-                </h1>
+    <h1 className="mb-3 text-3xl font-semibold">
+      Resume Intelligence
+    </h1>
 
-                <p className="mb-6 max-w-md text-sm opacity-60">
-                  Upload your resume and get ATS score, role fit, missing skills,
-                  ATS keywords, and improvement suggestions.
-                </p>
+    <p className="mb-6 max-w-md text-sm opacity-60">
+      Analyze your resume, match it with a JD, or generate stronger resume bullets.
+    </p>
 
-<div className="grid w-full max-w-md gap-3">
-  <button
-    onClick={() => {
-      if (!user) {
-        setShowAuth(true);
-        return;
-      }
+    <div className="grid w-full max-w-md gap-3">
+      <button
+        onClick={() => openResumeTool('analyze')}
+        className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700"
+      >
+        1. Analyze Resume
+      </button>
 
-      setShowResumeAnalyzer(true);
-    }}
-    className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700"
-  >
-    1. Analyze Resume
-  </button>
+      <button
+        onClick={() => openResumeTool('jd')}
+        className="rounded-xl bg-[#2f2f2f] px-5 py-3 text-sm font-medium text-white hover:bg-[#3f3f3f]"
+      >
+        2. Match With JD
+      </button>
 
-  <button
-    onClick={() => {
-      alert('JD Matcher coming next');
-    }}
-    className="rounded-xl bg-[#2f2f2f] px-5 py-3 text-sm font-medium text-white hover:bg-[#3f3f3f]"
-  >
-    2. Match With JD
-  </button>
-
-  <button
-    onClick={() => {
-      alert('Resume Bullet Generator coming next');
-    }}
-    className="rounded-xl bg-[#2f2f2f] px-5 py-3 text-sm font-medium text-white hover:bg-[#3f3f3f]"
-  >
-    3. Generate Better Resume Bullets
-  </button>
-</div>
-
-              </div>
-            )}
-
+      <button
+        onClick={() => openResumeTool('bullets')}
+        className="rounded-xl bg-[#2f2f2f] px-5 py-3 text-sm font-medium text-white hover:bg-[#3f3f3f]"
+      >
+        3. Generate Better Resume Bullets
+      </button>
+    </div>
+  </div>
+)}
             {messages.map((msg, index) => (
               <div
                 key={msg._id || index}
@@ -1154,136 +1274,176 @@ const analyzeResume = async () => {
           </div>
         )}
 
+{showResumeAnalyzer && (
+  <div className="mx-auto mb-3 max-h-[72vh] w-full max-w-3xl overflow-y-auto px-4 pr-2">
+    <div
+      className={`rounded-2xl border p-5 ${
+        isDark
+          ? 'border-[#3a3a3a] bg-[#2a2a2a]'
+          : 'border-slate-200 bg-white'
+      }`}
+    >
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">
+            {resumeTool === 'analyze' && 'Analyze Resume'}
+            {resumeTool === 'jd' && 'Match Resume With JD'}
+            {resumeTool === 'bullets' && 'Generate Better Resume Bullets'}
+          </h2>
 
-        {showResumeAnalyzer && (
-            <div className="mx-auto mb-3 max-h-[72vh] w-full max-w-3xl overflow-y-auto px-4 pr-2">
-              <div
-              className={`rounded-2xl border p-5 ${
-                isDark
-                  ? 'border-[#3a3a3a] bg-[#2a2a2a]'
-                  : 'border-slate-200 bg-white'
-              }`}
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold">
-                    Resume Analyzer
-                  </h2>
+          <p className="mt-1 text-sm opacity-60">
+            Career intelligence powered by Nexora AI.
+          </p>
+        </div>
 
-                  <p className="mt-1 text-sm opacity-60">
-                    Upload resume and enter target role.
-                  </p>
-                </div>
+        <button
+          onClick={() => {
+            setShowResumeAnalyzer(false);
+            resetResumeTool();
+          }}
+          className={`rounded-lg px-3 py-1 text-lg ${
+            isDark ? 'hover:bg-[#3a3a3a]' : 'hover:bg-slate-100'
+          }`}
+        >
+          ×
+        </button>
+      </div>
 
-                <button
-                  onClick={() => {
-                    setShowResumeAnalyzer(false);
-                    setResumeResult(null);
-                    setResumeFile(null);
-                    setTargetRole('');
-                  }}
-                  className={`rounded-lg px-3 py-1 text-lg ${
-                    isDark ? 'hover:bg-[#3a3a3a]' : 'hover:bg-slate-100'
-                  }`}
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="grid gap-3">
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={(e) => setResumeFile(e.target.files[0])}
-                  className={`rounded-xl border px-4 py-3 text-sm ${inputClass}`}
-                />
-
-                <input
-                  value={targetRole}
-                  onChange={(e) => setTargetRole(e.target.value)}
-                  placeholder="Target role e.g. Backend Engineer, Data Analyst, HR Executive"
-                  className={`rounded-xl border px-4 py-3 text-sm outline-none ${inputClass}`}
-                />
-
-                <button
-                  onClick={analyzeResume}
-                  disabled={resumeAnalyzing}
-                  className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-                >
-                  {resumeAnalyzing ? 'Analyzing...' : 'Analyze Resume'}
-                </button>
-              </div>
-
-              {resumeResult && (
-                  <div className="mt-5 max-h-[42vh] space-y-4 overflow-y-auto pr-2">
-                      <div className="rounded-2xl bg-green-600/10 p-4">
-                    <div className="text-sm opacity-70">ATS Score</div>
-
-                    <div className="text-3xl font-bold text-green-400">
-                      {resumeResult.atsScore}/100
-                    </div>
-                  </div>
-
-                  {resumeResult.targetRoleFit && (
-                    <div>
-                      <h3 className="mb-2 font-semibold">Target Role Fit</h3>
-
-                      <p className="text-sm opacity-80">
-                        {resumeResult.targetRoleFit}
-                      </p>
-                    </div>
-                  )}
-
-                  <div>
-                    <h3 className="mb-2 font-semibold">Summary</h3>
-
-                    <p className="text-sm opacity-80">
-                      {resumeResult.summary}
-                    </p>
-                  </div>
-
-                  <ResultList
-                    title="Strengths"
-                    items={resumeResult.strengths}
-                  />
-
-                  <ResultList
-                    title="Weaknesses"
-                    items={resumeResult.weaknesses}
-                  />
-
-                  <ResultList
-                    title="Missing Skills"
-                    items={resumeResult.missingSkills}
-                  />
-
-                  <ResultList
-                    title="Role Specific Improvements"
-                    items={resumeResult.roleSpecificImprovements}
-                  />
-
-                  <ResultList
-                    title="Projects / Certifications"
-                    items={resumeResult.recommendedProjectsOrCertifications}
-                  />
-
-                  <ResultList
-                    title="ATS Keywords To Add"
-                    items={resumeResult.atsKeywordsToAdd}
-                  />
-
-                  <div>
-                    <h3 className="mb-2 font-semibold">Final Verdict</h3>
-
-                    <p className="text-sm opacity-80">
-                      {resumeResult.finalVerdict}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+      <div className="grid gap-3">
+        {(resumeTool === 'analyze' || resumeTool === 'jd') && (
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={(e) => setResumeFile(e.target.files[0])}
+            className={`rounded-xl border px-4 py-3 text-sm ${inputClass}`}
+          />
         )}
+
+        <input
+          value={targetRole}
+          onChange={(e) => setTargetRole(e.target.value)}
+          placeholder="Target role e.g. Backend Engineer, Data Analyst, HR Executive"
+          className={`rounded-xl border px-4 py-3 text-sm outline-none ${inputClass}`}
+        />
+
+        {resumeTool === 'jd' && (
+          <textarea
+            value={jobDescription}
+            onChange={(e) => setJobDescription(e.target.value)}
+            rows={6}
+            placeholder="Paste full job description here..."
+            className={`rounded-xl border px-4 py-3 text-sm outline-none ${inputClass}`}
+          />
+        )}
+
+        {resumeTool === 'bullets' && (
+          <textarea
+            value={resumeBullets}
+            onChange={(e) => setResumeBullets(e.target.value)}
+            rows={6}
+            placeholder={`Paste your current resume bullets here...\nExample:\nWorked on backend APIs\nUsed Redis caching\nHandled Socket.io events`}
+            className={`rounded-xl border px-4 py-3 text-sm outline-none ${inputClass}`}
+          />
+        )}
+
+        <button
+          onClick={() => {
+            if (resumeTool === 'analyze') runAnalyzeResume();
+            if (resumeTool === 'jd') runMatchWithJD();
+            if (resumeTool === 'bullets') runGenerateBullets();
+          }}
+          disabled={resumeLoading}
+          className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+        >
+          {resumeLoading ? 'Processing...' : 'Run AI Analysis'}
+        </button>
+      </div>
+
+      {resumeResult && (
+        <div className="mt-5 max-h-[42vh] space-y-4 overflow-y-auto pr-2">
+          {resumeResult.atsScore !== undefined && (
+            <div className="rounded-2xl bg-green-600/10 p-4">
+              <div className="text-sm opacity-70">ATS Score</div>
+              <div className="text-3xl font-bold text-green-400">
+                {resumeResult.atsScore}/100
+              </div>
+            </div>
+          )}
+
+          {resumeResult.matchScore !== undefined && (
+            <div className="rounded-2xl bg-blue-600/10 p-4">
+              <div className="text-sm opacity-70">JD Match Score</div>
+              <div className="text-3xl font-bold text-blue-400">
+                {resumeResult.matchScore}/100
+              </div>
+            </div>
+          )}
+
+          {resumeResult.summary && (
+            <div>
+              <h3 className="mb-2 font-semibold">Summary</h3>
+              <p className="text-sm opacity-80">{resumeResult.summary}</p>
+            </div>
+          )}
+
+          <ResultList title="Strengths" items={resumeResult.strengths} />
+          <ResultList title="Weaknesses" items={resumeResult.weaknesses} />
+          <ResultList title="Missing Skills" items={resumeResult.missingSkills} />
+          <ResultList title="Strong Matches" items={resumeResult.strongMatches} />
+          <ResultList title="Weak Areas" items={resumeResult.weakAreas} />
+          <ResultList title="Resume Improvements" items={resumeResult.resumeImprovements} />
+          <ResultList title="Role Improvements" items={resumeResult.roleSpecificImprovements} />
+          <ResultList title="ATS Keywords" items={resumeResult.atsKeywordsToAdd} />
+          <ResultList title="Interview Focus Areas" items={resumeResult.interviewFocusAreas} />
+          <ResultList title="Projects / Certifications" items={resumeResult.recommendedProjectsOrCertifications} />
+
+          {resumeResult.improvedBullets?.length > 0 && (
+            <div>
+              <h3 className="mb-2 font-semibold">Improved Bullets</h3>
+
+              <div className="space-y-3">
+                {resumeResult.improvedBullets.map((item, index) => (
+                  <div
+                    key={index}
+                    className={`rounded-xl border p-3 text-sm ${
+                      isDark
+                        ? 'border-[#3a3a3a] bg-[#171717]'
+                        : 'border-slate-200 bg-slate-50'
+                    }`}
+                  >
+                    <div className="mb-2 opacity-60">
+                      Original: {item.original}
+                    </div>
+
+                    <div className="font-medium">
+                      Improved: {item.improved}
+                    </div>
+
+                    {item.whyBetter && (
+                      <div className="mt-2 text-xs opacity-60">
+                        Why better: {item.whyBetter}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <ResultList title="ATS Keywords To Use" items={resumeResult.atsKeywordsToUse} />
+          <ResultList title="Final Tips" items={resumeResult.finalTips} />
+
+          {resumeResult.finalVerdict && (
+            <div>
+              <h3 className="mb-2 font-semibold">Final Verdict</h3>
+              <p className="text-sm opacity-80">{resumeResult.finalVerdict}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
         <footer className={`shrink-0 border-t px-4 py-3 ${headerClass}`}>
           <div className="mx-auto flex max-w-3xl items-center gap-2">
