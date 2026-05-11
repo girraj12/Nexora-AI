@@ -50,9 +50,9 @@ function ResultList({ title, items = [] }) {
         {items.map((item, index) => (
           <li
             key={index}
-            className="rounded-xl bg-white/5 px-3 py-2"
+            className="rounded-xl bg-white/5 px-3 py-2 break-words"
           >
-            {item}
+            {typeof item === 'string' ? item : JSON.stringify(item)}
           </li>
         ))}
       </ul>
@@ -116,6 +116,7 @@ function App() {
 
   const [resumeLoading, setResumeLoading] = useState(false);
   const [resumeResult, setResumeResult] = useState(null);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -286,7 +287,11 @@ function App() {
 
     const res = await fetch(`${API_URL}/api/conversations/create`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ mode: aiMode || 'general' }),
     });
 
     const data = await res.json();
@@ -320,7 +325,12 @@ function App() {
   };
 
   const loadMessages = async (conversation) => {
+    resetResumeState();
+    setShowUpload(false);
+    setDocumentMode(false);
+    setSelectedDoc(null);
     setCurrentConversation(conversation);
+    setAiMode(conversation.mode || 'general');
 
     const res = await fetch(
       `${API_URL}/api/conversations/${conversation._id}/messages`,
@@ -524,6 +534,39 @@ function App() {
     });
   };
 
+  const resetResumeState = () => {
+    setShowResumeAnalyzer(false);
+    setResumeTool('analyze');
+    setResumeLoading(false);
+    setResumeResult(null);
+    setResumeFile(null);
+    setTargetRole('');
+    setJobDescription('');
+    setResumeBullets('');
+  };
+
+  const handleNewChat = () => {
+    setAiMode('general');
+    setCurrentConversation(null);
+    setMessages([]);
+    resetResumeState();
+    setShowUpload(false);
+    setFile(null);
+    setDocumentMode(false);
+    setSelectedDoc(null);
+  };
+
+  const handleWorkspaceClick = (workspaceValue) => {
+    setAiMode(workspaceValue);
+    setCurrentConversation(null);
+    setMessages([]);
+    resetResumeState();
+    setShowUpload(false);
+    setFile(null);
+    setDocumentMode(false);
+    setSelectedDoc(null);
+  };
+
 const resetResumeTool = () => {
   setResumeFile(null);
   setTargetRole('');
@@ -638,40 +681,6 @@ const runGenerateBullets = async () => {
   setResumeResult(data.result || data);
 };
 
-const analyzeResume = async () => {
-  if (!user) {
-    setShowAuth(true);
-    return;
-  }
-
-  if (!resumeFile) {
-    alert('Please upload resume');
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('resume', resumeFile);
-  formData.append('targetRole', targetRole || 'General');
-
-  setResumeAnalyzing(true);
-
-  const res = await fetch(`${API_URL}/api/resume/analyze`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: formData,
-  });
-
-  const data = await res.json();
-  setResumeAnalyzing(false);
-
-  if (!res.ok) {
-    alert(data.message || 'Resume analysis failed');
-    return;
-  }
-
-  setResumeResult(data);
-};
-
   const copyMessage = async (content) => {
     await navigator.clipboard.writeText(content);
   };
@@ -746,8 +755,17 @@ const analyzeResume = async () => {
 
   return (
     <div className={`flex h-screen w-full overflow-hidden ${rootClass}`}>
+      {showMobileSidebar && (
+        <div
+          onClick={() => setShowMobileSidebar(false)}
+          className="fixed inset-0 z-30 bg-black/60 md:hidden"
+        />
+      )}
+
       <aside
-        className={`hidden w-[300px] shrink-0 flex-col border-r md:flex ${sidebarClass}`}
+        className={`fixed inset-y-0 left-0 z-40 flex w-[280px] shrink-0 transform flex-col border-r transition-transform duration-300 md:static md:z-auto md:w-[300px] md:translate-x-0 ${
+          showMobileSidebar ? 'translate-x-0' : '-translate-x-full'
+        } ${sidebarClass}`}
       >
         <div className="flex h-14 items-center gap-3 px-4">
           <img src="/trinetra.svg" className="h-9 w-9 rounded-xl" />
@@ -756,11 +774,21 @@ const analyzeResume = async () => {
             <div className="font-semibold">Nexora AI</div>
             <div className="text-xs opacity-50">AI workspace</div>
           </div>
+
+          <button
+            onClick={() => setShowMobileSidebar(false)}
+            className="ml-auto rounded-lg px-2 py-1 text-sm hover:bg-white/10 md:hidden"
+          >
+            ✕
+          </button>
         </div>
 
         <div className="px-3 py-2">
           <button
-            onClick={createConversation}
+            onClick={() => {
+              handleNewChat();
+              setShowMobileSidebar(false);
+            }}
             className="w-full rounded-xl border border-white/10 bg-[#2f2f2f] px-4 py-3 text-left text-sm text-white hover:bg-[#3f3f3f]"
           >
             + New chat
@@ -783,7 +811,10 @@ const analyzeResume = async () => {
                   {group.items.map((workspace) => (
                     <button
                       key={workspace.value}
-                      onClick={() => setAiMode(workspace.value)}
+                      onClick={() => {
+                        handleWorkspaceClick(workspace.value);
+                        setShowMobileSidebar(false);
+                      }}
                       className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
                         aiMode === workspace.value
                           ? 'bg-blue-600 text-white'
@@ -820,7 +851,10 @@ const analyzeResume = async () => {
                 }`}
               >
                 <span
-                  onClick={() => loadMessages(conv)}
+                  onClick={() => {
+                    loadMessages(conv);
+                    setShowMobileSidebar(false);
+                  }}
                   className="flex-1 truncate"
                 >
                   {conv.title}
@@ -859,13 +893,20 @@ const analyzeResume = async () => {
 
       <main className="flex h-screen min-w-0 flex-1 flex-col">
         <header
-          className={`flex h-14 shrink-0 items-center justify-between border-b px-4 ${headerClass}`}
+          className={`flex min-h-14 shrink-0 items-center justify-between gap-2 border-b px-2 py-2 sm:px-4 ${headerClass}`}
         >
-          <div className="flex items-center gap-3">
-            <img src="/trinetra.svg" className="h-8 w-8 rounded-lg md:hidden" />
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => setShowMobileSidebar(true)}
+              className="rounded-lg bg-[#2f2f2f] px-3 py-2 text-white md:hidden"
+            >
+              ☰
+            </button>
 
-            <div>
-              <div className="font-semibold">
+            <img src="/trinetra.svg" className="hidden h-8 w-8 rounded-lg sm:block md:hidden" />
+
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold sm:text-base">
                 {documentMode && selectedDoc
                   ? `Chat with ${selectedDoc.originalName}`
                   : user
@@ -882,10 +923,10 @@ const analyzeResume = async () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <button
               onClick={() => setTheme(isDark ? 'light' : 'dark')}
-              className="rounded-lg bg-[#2f2f2f] px-3 py-2 text-sm text-white hover:bg-[#3f3f3f]"
+              className="rounded-lg bg-[#2f2f2f] px-2 py-2 text-xs text-white hover:bg-[#3f3f3f] sm:px-3 sm:text-sm"
             >
               {isDark ? 'Light' : 'Dark'}
             </button>
@@ -896,7 +937,7 @@ const analyzeResume = async () => {
                   setShareUrl('');
                   setShowShareModal(true);
                 }}
-                className="rounded-lg bg-[#2f2f2f] px-3 py-2 text-sm text-white hover:bg-[#3f3f3f]"
+                className="rounded-lg bg-[#2f2f2f] px-2 py-2 text-xs text-white hover:bg-[#3f3f3f] sm:px-3 sm:text-sm"
               >
                 Share
               </button>
@@ -905,14 +946,14 @@ const analyzeResume = async () => {
             {user ? (
               <button
                 onClick={logout}
-                className="rounded-lg bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
+                className="rounded-lg bg-red-600 px-2 py-2 text-xs text-white hover:bg-red-700 sm:px-3 sm:text-sm"
               >
                 Logout
               </button>
             ) : (
               <button
                 onClick={() => setShowAuth(true)}
-                className="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
+                className="rounded-lg bg-blue-600 px-2 py-2 text-xs text-white hover:bg-blue-700 sm:px-3 sm:text-sm"
               >
                 Login
               </button>
@@ -921,7 +962,7 @@ const analyzeResume = async () => {
         </header>
 
         <section className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl px-4 py-8">
+          <div className="mx-auto w-full max-w-3xl px-3 py-5 sm:px-4 sm:py-8">
             {messages.length === 0 && aiMode !== 'resume' && (
               <div className="flex min-h-[65vh] flex-col items-center justify-center text-center">
                 <img
@@ -952,7 +993,7 @@ const analyzeResume = async () => {
       Analyze your resume, match it with a JD, or generate stronger resume bullets.
     </p>
 
-    <div className="grid w-full max-w-md gap-3">
+    <div className="grid w-full max-w-md gap-3 px-2 sm:px-0">
       <button
         onClick={() => openResumeTool('analyze')}
         className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700"
@@ -984,7 +1025,7 @@ const analyzeResume = async () => {
                 }`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-7 ${
+                  className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-7 sm:max-w-[85%] ${
                     msg.sender === 'user'
                       ? 'bg-[#2f2f2f] text-white'
                       : isDark
@@ -1057,7 +1098,7 @@ const analyzeResume = async () => {
         </section>
 
         {showUpload && (
-          <div className="mx-auto mb-3 w-full max-w-3xl px-4">
+          <div className="mx-auto mb-2 w-full max-w-3xl px-2 sm:px-4">
             <div
               className={`rounded-2xl border backdrop-blur-xl ${
                 isDark
@@ -1221,7 +1262,7 @@ const analyzeResume = async () => {
         )}
 
         {documentMode && selectedDoc && (
-          <div className="mx-auto mb-3 w-full max-w-3xl px-4">
+          <div className="mx-auto mb-2 w-full max-w-3xl px-2 sm:px-4">
             <div
               className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${
                 isDark
@@ -1258,9 +1299,9 @@ const analyzeResume = async () => {
         )}
 
 {showResumeAnalyzer && (
-  <div className="mx-auto mb-3 max-h-[72vh] w-full max-w-3xl overflow-y-auto px-4 pr-2">
+  <div className="mx-auto mb-2 max-h-[75vh] w-full max-w-3xl overflow-y-auto px-2 sm:px-4">
     <div
-      className={`rounded-2xl border p-5 ${
+      className={`rounded-2xl border p-3 sm:p-5 ${
         isDark
           ? 'border-[#3a3a3a] bg-[#2a2a2a]'
           : 'border-slate-200 bg-white'
@@ -1343,7 +1384,7 @@ const analyzeResume = async () => {
       </div>
 
       {resumeResult && (
-        <div className="mt-5 max-h-[42vh] space-y-4 overflow-y-auto pr-2">
+        <div className="mt-5 max-h-[45vh] space-y-4 overflow-y-auto pr-1 sm:pr-2">
           {resumeResult.atsScore !== undefined && (
             <div className="rounded-2xl bg-green-600/10 p-4">
               <div className="text-sm opacity-70">ATS Score</div>
@@ -1428,8 +1469,8 @@ const analyzeResume = async () => {
   </div>
 )}
 
-        <footer className={`shrink-0 border-t px-4 py-3 ${headerClass}`}>
-          <div className="mx-auto flex max-w-3xl items-center gap-2">
+        <footer className={`shrink-0 border-t px-2 py-2 sm:px-4 sm:py-3 ${headerClass}`}>
+          <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
             <button
               onClick={() => {
                 if (!user) {
@@ -1443,20 +1484,23 @@ const analyzeResume = async () => {
             >
               +
             </button>
-
-            <input
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') sendMessage();
-              }}
-              placeholder={`Message ${selectedWorkspace.label}...`}
-              className={`h-11 flex-1 rounded-xl border px-4 text-sm outline-none ${inputClass}`}
-            />
+<textarea
+  value={message}
+  onChange={(e) => setMessage(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }}
+  rows={1}
+  placeholder={`Message ${selectedWorkspace.label}...`}
+  className={`max-h-32 min-h-[44px] min-w-0 flex-1 resize-none rounded-xl border px-3 py-3 text-sm outline-none sm:px-4 ${inputClass}`}
+/>
 
             <button
               onClick={sendMessage}
-              className="h-11 rounded-xl bg-white px-5 text-sm font-medium text-black hover:bg-slate-200"
+              className="h-11 shrink-0 rounded-xl bg-white px-3 text-sm font-medium text-black hover:bg-slate-200 sm:px-5"
             >
               Send
             </button>
